@@ -34,7 +34,7 @@ namespace Application.Envelopes
                                 Month = request.month,
                                 Year = request.year,
                                 Id = newT.Key.EnvelopeId,
-                                Balance = newT.Sum<Transaction>(x => x.TotalBalance)
+                                Balance = newT.Sum<Transaction>(x => x.Inflow - x.Outflow)
                             };
 
                 var items = await query.ToListAsync();
