@@ -12,6 +12,12 @@ namespace API.Controllers
         {
             return HandlePagedResult(await Mediator.Send(new List.Query { Params = param }));
         }
+        [HttpGet]
+        [Route("monthly")]
+        public async Task<ActionResult> GetMonthlyByEnvelope([FromQuery] MonthlyEnvelopeParams request)
+        {
+            return HandlePagedResult(await Mediator.Send(new MonthlyByEnvelope.Query { Params = request }));
+        }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Transaction>> GetTransaction(Guid id)

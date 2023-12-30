@@ -124,12 +124,6 @@ namespace Application.Transactions
             _transaction = transaction;
 
         }
-        private Transaction LoadTransaction_UnTracked(Guid id)
-        {
-            return _context.Transactions
-                .Where(e => e.Id == id)
-                .AsNoTracking().FirstOrDefault();
-        }
         /// <summary>
         /// get total balance of a lastest transaction of a bank
         ///
@@ -181,21 +175,7 @@ namespace Application.Transactions
         }
 
 
-        /// <summary>
-        /// Load a transaction
-        /// It will not be tracked by DBContext
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        private async Task<Transaction> LoadTransaction_Untracked(Guid id)
-        {
 
-            return await _context.Transactions
-                .Where(e => e.Id == id)
-                .AsNoTracking().FirstOrDefaultAsync();
-
-        }
         public async Task<Result<string>> UpdateTransaction(Boolean isDeleteTransaction = false)
         {
             var result= await UpdateBalanceWhenCreateOrDeleteTransaction(_transaction, isDeleteTransaction);
