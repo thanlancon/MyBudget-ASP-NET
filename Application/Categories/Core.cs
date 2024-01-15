@@ -19,9 +19,9 @@ namespace Application.Categories
 
             return ResponseConstants.IsUpdateAble;
         }
-        public static async Task<string> IsDeleteAble(DataContext context, Category item)
+        public static async Task<string> IsDeleteAble(DataContext context, Guid Id)
         {
-            var count = await context.Envelopes.CountAsync(e => e.CategoryId == item.Id);
+            var count = await context.Envelopes.CountAsync(e => e.CategoryId == Id);
             if (count > 0)
             {
                 return ResponseConstants.Category.EnvelopeExist;

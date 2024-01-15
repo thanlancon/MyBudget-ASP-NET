@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Application.Banks;
+using Application.Core;
 using Domain;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,10 @@ namespace API.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult> EditBank(Guid id, Bank bank)
         {
+            if(id!=bank.Id)
+            {
+                return HandleResult(Result<string>.Failure(ResponseConstants.RequestMissMatch));
+            }
             return HandleResult(await Mediator.Send(new Edit.Command { Bank = bank }));
         }
         [HttpDelete("{id}")]

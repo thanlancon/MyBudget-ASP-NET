@@ -25,9 +25,21 @@ namespace Application.Transactions
             public async Task<Result<string>> Handle(Command request, CancellationToken cancellationToken)
             {
                 var item = await _context.Transactions.FindAsync(request.Transaction.Id);
-                _mapper.Map(request.Transaction, item);
-                TransactionActions transactionActions = new TransactionActions(item, _context);
-                return await transactionActions.UpdateTransaction();
+                if (item != null)
+                {
+                    var resultCode = Transactions.Core.IsEditAble(_context, request.Transaction);
+                    if (resultCode == ResponseConstants.IsUpdateAble)
+                    {
+                        _mapper.Map(request.Transaction, item);
+                        TransactionActions transactionActions = new TransactionActions(item, _context);
+                        return await transactionActions.UpdateTransaction();
+                    }
+                    return Result<string>.Failure(resultCode);
+                }
+                else
+                {
+                    return Result<string>.Failure(ResponseConstants.Transaction.NotFound);
+                }
             }
         }
     }

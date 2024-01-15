@@ -23,7 +23,7 @@ namespace Application.Categories
                 var item = await _context.Categories.FindAsync(request.Id);
                 if (item != null)
                 {
-                    string resultCode = await Core.IsDeleteAble(_context, item);
+                    string resultCode = await Core.IsDeleteAble(_context, request.Id);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         _context.Categories.Remove(item);

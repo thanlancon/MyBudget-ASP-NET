@@ -1,3 +1,4 @@
+using Application.Core;
 using Application.Payees;
 using Domain;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,10 @@ namespace API.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult> EditPayee(Guid id, Payee payee)
         {
+            if(id!=payee.Id)
+            {
+                return HandleResult(Result<string>.Failure(ResponseConstants.RequestMissMatch));
+            }
             return HandleResult(await Mediator.Send(new Edit.Command { Payee = payee }));
         }
         [HttpDelete("{id}")]

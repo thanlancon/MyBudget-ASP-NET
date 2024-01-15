@@ -27,7 +27,7 @@ namespace Application.Envelopes
                 var item = await _context.Envelopes.FindAsync(request.Envelope.Id);
                 if (item != null)
                 {
-                    string resultCode = await Core.IsEditAble(_context, item);
+                    string resultCode = await Core.IsEditAble(_context, request.Envelope);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         _mapper.Map(request.Envelope, item);

@@ -7,7 +7,7 @@ namespace Application.Envelopes
 {
     public static class Core
     {
-        
+
         public static async Task<string> IsCreateAble(DataContext context, Envelope item)
         {
             var count = await context.Envelopes.CountAsync(e => e.Name == item.Name);
@@ -17,9 +17,9 @@ namespace Application.Envelopes
             }
             return ResponseConstants.IsUpdateAble;
         }
-        public static async Task<string> IsDeleteAble(DataContext context, Envelope item)
+        public static async Task<string> IsDeleteAble(DataContext context, Guid Id)
         {
-            var count = await context.Transactions.CountAsync(e => e.EnvelopeId == item.Id);
+            var count = await context.Transactions.CountAsync(e => e.EnvelopeId == Id);
             if (count > 0)
             {
                 return ResponseConstants.Envelope.TransactionExist;

@@ -17,9 +17,9 @@ namespace Application.Payees
             }
             return ResponseConstants.IsUpdateAble;
         }
-        public static async Task<string> IsDeleteAble(DataContext context, Payee item)
+        public static async Task<string> IsDeleteAble(DataContext context, Guid Id)
         {
-            var count = await context.Transactions.CountAsync(e => e.PayeeId == item.Id);
+            var count = await context.Transactions.CountAsync(e => e.PayeeId == Id);
             if (count > 0)
             {
                 return ResponseConstants.Payee.TransactionExist;

@@ -1,3 +1,4 @@
+using Application.Core;
 using Application.Envelopes;
 using Domain;
 using Microsoft.AspNetCore.Mvc;
@@ -32,12 +33,16 @@ namespace API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> EditEnvelope(Guid id, Envelope envelope)
         {
-            envelope.Id = id;
+            if(id!=envelope.Id)
+            {
+                return HandleResult(Result<string>.Failure(ResponseConstants.RequestMissMatch));
+            }
             return HandleResult(await Mediator.Send(new Edit.Command { Envelope = envelope }));
         }
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEnvelope(Guid id)
         {
+            
             return HandleResult(await Mediator.Send(new Delete.Command { Id = id }));
         }
         [HttpPut("recalculateTotalBalance")]

@@ -22,7 +22,7 @@ namespace Application.Transactions
             {
                 if (request.Transaction != null)
                 {
-                    string resultCode = Core.IsDeleteAble(_context, request.Transaction);
+                    string resultCode = Core.IsDeleteAble(_context, request.Transaction.Id);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         TransactionActions transactionActions = new TransactionActions(request.Transaction, _context);

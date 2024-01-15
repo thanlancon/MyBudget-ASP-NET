@@ -13,15 +13,6 @@ namespace Application.Transactions
     public class TransactionActions
     {
         /// <summary>
-        /// total balance after create/delete/update transaction
-        /// used to update bank balance
-        /// to reduce number of times to read database
-        /// </summary>
-        private decimal _totalBalanceAfterUpdate = 0;
-
-
-
-        /// <summary>
         /// Create a new transfer transaction
         /// </summary>
         /// <returns>
@@ -178,8 +169,8 @@ namespace Application.Transactions
 
         public async Task<Result<string>> UpdateTransaction(Boolean isDeleteTransaction = false)
         {
-            var result= await UpdateBalanceWhenCreateOrDeleteTransaction(_transaction, isDeleteTransaction);
-            if(result==ResponseConstants.UpdateSuccess)
+            var result = await UpdateBalanceWhenCreateOrDeleteTransaction(_transaction, isDeleteTransaction);
+            if (result == ResponseConstants.UpdateSuccess)
             {
                 return Result<string>.Success(ResponseConstants.UpdateSuccess);
             }
@@ -194,12 +185,9 @@ namespace Application.Transactions
                 return ResponseConstants.Transaction.OnlyUpdateOrDeleteTran;
             }
             Transaction transactionBeforeEdit;
-            Boolean transactionIsNew = false;
-            Boolean transferTransactionIsNew = false;
             //if transaction is new
             if (transaction.Id == Guid.Empty)
             {
-                transactionIsNew = true;
                 transaction.Id = Guid.NewGuid();
                 lastestSequenceNumber = GetLastestSequenceNumber();
 
@@ -236,7 +224,6 @@ namespace Application.Transactions
                 //if the transfer transaction is not exist, create one
                 else
                 {
-                    transferTransactionIsNew = true;
                     transferTransaction = GetNewTransferTransaction(transaction);
                     //if cannot load or create the transfer transaction, cannot move on....
                     if (transferTransaction == null)
@@ -251,12 +238,23 @@ namespace Application.Transactions
 
             ///////Update balances for transaction
             //update total balance for transactions
-            if (await UpdateTransactionBalanceAndFollowingTransactions(transaction, transactionIsNew,  isDelete) == false)
+            decimal totalBalance;
+            if (isDelete)
             {
-                return ResponseConstants.Transaction.FailToUpdateFollowingBalance;
+                if (UpdateTransBalance_DeleteTransaction(transaction, out totalBalance) == false)
+                {
+                    return ResponseConstants.Transaction.FailToUpdateFollowingBalance;
+                }
             }
-            //_totalBalanceAfterUpdate is just updated after UpdateTransactionBalanceAndFollowingTransactions
-            if (await UpdateBalance_BankAccounts(transaction.BankId, _totalBalanceAfterUpdate) != ResponseConstants.UpdateSuccess)
+            else
+            {
+                if (UpdateTransBalance_NewTransaction(transaction, out totalBalance) == false)
+                {
+                    return ResponseConstants.Transaction.FailToUpdateFollowingBalance;
+                }
+            }
+            //update total balance for bank
+            if (await UpdateBalance_BankAccounts(transaction.BankId, totalBalance) != ResponseConstants.UpdateSuccess)
             {
                 return ResponseConstants.Transaction.FailToUpdateBankBalance;
             }
@@ -276,13 +274,24 @@ namespace Application.Transactions
             //update total balance for transfer transactions
             if (transferTransaction != null)
             {
-                if (await UpdateTransactionBalanceAndFollowingTransactions(transferTransaction, transferTransactionIsNew, isDelete) == false)
+                decimal balanceBankTransfer = 0;
+                if (isDelete)
                 {
-                    return ResponseConstants.Transaction.FailToUpdateFollowingTransferBalance;
+                    if (UpdateTransBalance_DeleteTransaction(transferTransaction, out balanceBankTransfer) == false)
+                    {
+                        return ResponseConstants.Transaction.FailToUpdateFollowingBalance;
+                    }
                 }
-                //_totalBalanceAfterUpdate is just updated after UpdateTransactionBalanceAndFollowingTransactions
+                else
+                {
+                    if (UpdateTransBalance_NewTransaction(transferTransaction, out balanceBankTransfer) == false)
+                    {
+                        return ResponseConstants.Transaction.FailToUpdateFollowingBalance;
+                    }
+                }
+                //update total balance for bank
                 //update balance for bank
-                if (await UpdateBalance_BankAccounts(transferTransaction.BankId, _totalBalanceAfterUpdate) != ResponseConstants.UpdateSuccess)
+                if (await UpdateBalance_BankAccounts(transferTransaction.BankId, balanceBankTransfer) != ResponseConstants.UpdateSuccess)
                 {
                     return ResponseConstants.Transaction.FailToUpdateBankBalanceTransfer;
                 }
@@ -320,67 +329,175 @@ namespace Application.Transactions
         /// Load list of transactions that are entered after the input transaction
         /// </summary>
         /// <param name="transaction"></param>
-        /// <param name="transactionIsNew"></param>
         /// <returns></returns>
-        private async Task<List<Transaction>> LoadFollowingTransactions(Transaction transaction, Boolean transactionIsNew)
+        private List<Transaction> LoadFollowingTransactions(Transaction transaction)
         {
-            //if transaction is exist
-            if (!transactionIsNew)
-            {
-                var query = _context.Transactions
-                    .Where(t => t.BankId == transaction.BankId)
-                    .Where(t => t.TransactionDate >= transaction.TransactionDate)
-                    .Where(t => t.Id != transaction.Id)
-                    .OrderBy(t => t.TransactionDate)
-                    .OrderBy(t => t.PostDate)
-                    .ThenBy(t => t.SequenceNumber);
-                return await query.ToListAsync();
-            }
-            else //if transaction is new
-            {
-                var query = _context.Transactions
-                    .Where(t => t.BankId == transaction.BankId)
-                    .Where(t => t.TransactionDate > transaction.TransactionDate)
-                    .OrderBy(t => t.TransactionDate)
-                    .OrderBy(t => t.PostDate)
-                    .ThenBy(t => t.SequenceNumber);
-                return await query.ToListAsync();
-            }
+
+            var query = _context.Transactions
+                .Where(t => t.BankId == transaction.BankId)
+                .Where(t => t.TransactionDate >= transaction.TransactionDate)
+                .Where(t => t.PostDate >= transaction.PostDate)
+                .OrderBy(t => t.TransactionDate)
+                .ThenBy(t => t.PostDate)
+                .ThenBy(t => t.SequenceNumber);
+            return query.ToList();
         }
-
-
         /// <summary>
-        /// Update balances of transaction and all following transaction
-        ///
+        /// Get newest transaction of a bank account
+        /// </summary>
+        /// <param name="bankID"></param>
+        /// <returns>
+        /// transaction with newest transaction date and newest tranaction posted date
+        /// </returns>
+        private Transaction GetNewestTransaction(Guid bankID)
+        {
+            var query = _context.Transactions
+                .Where(t => t.BankId == bankID)
+                .OrderByDescending(t => t.TransactionDate)
+                .ThenByDescending(t => t.PostDate)
+                .ThenByDescending(t => t.SequenceNumber);
+            return query.First();
+        }
+        /// <summary>
+        /// compare two transaction dates
+        /// only compare day, month, year
+        /// </summary>
+        /// <param name="date1"></param>
+        /// <param name="date2"></param>
+        /// <returns>
+        /// Greater than zero: date1 after date2
+        /// 0: date1 is the same date as date2
+        /// Less than zero: date1 before date2
+        /// </returns>
+        private int CompareTransactionDate(DateTime date1, DateTime date2)
+        {
+            var temp1 = new DateTime(date1.Year, date1.Month, date1.Day);
+            var temp2 = new DateTime(date2.Year, date2.Month, date2.Day);
+            return temp1.CompareTo(temp2);
+        }
+        /// <summary>
+        /// update transaction balance when creating new transaction
         /// </summary>
         /// <param name="transaction"></param>
-        /// <param name="transactionIsNew"></param>
-        /// <param name="isDelete"></param>
+        /// <param name="totalBalance">
+        /// total balance after update all transaction balance
+        /// </param>
         /// <returns></returns>
-        private async Task<Boolean> UpdateTransactionBalanceAndFollowingTransactions(Transaction transaction, Boolean transactionIsNew, Boolean isDelete = false)
+        private Boolean UpdateTransBalance_NewTransaction(Transaction transaction, out Decimal totalBalance)
         {
+            totalBalance = 0;
             try
             {
-                List<Transaction> listFollowingTransaction = await LoadFollowingTransactions(transaction, transactionIsNew);
-                decimal previousTransactionTotalBalance = TotalBalancePreviousTransaction(transaction);
-                _totalBalanceAfterUpdate = previousTransactionTotalBalance;
-                //update total balance for the input transaction
-                if (!isDelete)
+                List<Transaction> listFollowingTransaction = LoadFollowingTransactions(transaction);
+
+                //if no transaction is found
+                //mean: input transaction is the newest transction
+                //update total balance for the input transaction only
+                if (listFollowingTransaction.Count == 0)
                 {
-                    transaction.TotalBalance = previousTransactionTotalBalance + transaction.Inflow - transaction.Outflow;
-                    previousTransactionTotalBalance = transaction.TotalBalance;
-                    _totalBalanceAfterUpdate = transaction.TotalBalance;
-                }
-                //will perform updating balance for input list of transactions
-                if (listFollowingTransaction != null)
-                {
-                    for (int i = 0; i < listFollowingTransaction.Count; i++)
+                    //find newest transction of the bank
+                    var newestTransaction = GetNewestTransaction(transaction.BankId);
+                    //if found latest transaction
+                    if (newestTransaction != null)
                     {
-                        listFollowingTransaction[i].TotalBalance = previousTransactionTotalBalance + listFollowingTransaction[i].Inflow - listFollowingTransaction[i].Outflow;
-                        previousTransactionTotalBalance = listFollowingTransaction[i].TotalBalance;
-                        _totalBalanceAfterUpdate = listFollowingTransaction[i].TotalBalance;
+                        totalBalance = newestTransaction.TotalBalance;
+                    }
+                    transaction.TotalBalance = totalBalance + (transaction.Inflow - transaction.Outflow);
+                    totalBalance = transaction.TotalBalance;
+                    return true;
+                }
+
+                Transaction firstTransaction = listFollowingTransaction.Find(x => x.Id == transaction.Id);
+                //input transaction is new, so it cannot be in the list
+                //if it is in the list, something is wrong
+                if (firstTransaction != null)
+                {
+                    return false;
+                }
+
+                int i = 0;
+
+                //listFollowingTransaction may include transactions that have the same transaction date and post date with input transaction
+                //skip and won't update those transaction
+                for (; i < listFollowingTransaction.Count; i++)
+                {
+                    if (CompareTransactionDate(listFollowingTransaction[i].TransactionDate, transaction.TransactionDate) > 0 && CompareTransactionDate(listFollowingTransaction[i].PostDate, transaction.PostDate) > 0)
+                    {
+                        firstTransaction = listFollowingTransaction[i];
+                        break;
                     }
                 }
+                //if there is no transaction that has transaction date and post date before the input transaction's dates
+                //update balance for input transaction base on the 1st transaction in the list
+                if (firstTransaction == null)
+                {
+                    totalBalance = listFollowingTransaction[0].TotalBalance + (transaction.Inflow - transaction.Outflow);
+                    transaction.TotalBalance = totalBalance;
+                }
+                //firstTransaction is the one before the input transaction
+                //do the math to get total balance of the transaction before the firstTransaction
+                //and update total balance for input transaction
+                else
+                {
+                    totalBalance = firstTransaction.TotalBalance + (firstTransaction.Outflow - firstTransaction.Inflow);
+                    transaction.TotalBalance = totalBalance + (transaction.Inflow - transaction.Outflow);
+                    totalBalance = transaction.TotalBalance;
+                }
+
+                //will perform updating balance for input list of transactions
+                for (; i < listFollowingTransaction.Count; i++)
+                {
+                    listFollowingTransaction[i].TotalBalance = totalBalance + listFollowingTransaction[i].Inflow - listFollowingTransaction[i].Outflow;
+                    totalBalance = listFollowingTransaction[i].TotalBalance;
+                }
+
+                return true;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return false;
+            }
+        }
+        /// <summary>
+        /// update balance for transaction when deleting
+        /// </summary>
+        /// <param name="transaction"></param>
+        /// <param name="totalBalance"></param>
+        /// <returns></returns>
+        private Boolean UpdateTransBalance_DeleteTransaction(Transaction transaction, out Decimal totalBalance)
+        {
+            totalBalance = 0;
+            try
+            {
+                List<Transaction> listFollowingTransaction = LoadFollowingTransactions(transaction);
+
+                Transaction firstTransaction = listFollowingTransaction.Find(x => x.Id == transaction.Id);
+
+                int i = 0;
+
+                //if 1st transaction is the input transaction
+                //do math to get total balance of the transaction before firstTransaction
+                //do not need to update firstTransaction (it is input transaction), it will be deleted
+                if (firstTransaction != null)
+                {
+                    i = listFollowingTransaction.IndexOf(firstTransaction);
+                    totalBalance = firstTransaction.TotalBalance + (firstTransaction.Outflow - firstTransaction.Inflow);
+                    i++;
+                }
+                //deleting, but transaction is not found in database
+                //something is wrong
+                else
+                {
+                    return false;
+                }
+
+                //update balance for transaction after the input transaction
+                for (; i < listFollowingTransaction.Count; i++)
+                {
+                    listFollowingTransaction[i].TotalBalance = totalBalance + listFollowingTransaction[i].Inflow - listFollowingTransaction[i].Outflow;
+                    totalBalance = listFollowingTransaction[i].TotalBalance;
+                }
+
                 return true;
             }
             catch (DbUpdateConcurrencyException)

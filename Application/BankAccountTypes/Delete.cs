@@ -23,7 +23,7 @@ namespace Application.BankAccountTypes
                 var item = await _context.BankAccountTypes.FindAsync(request.Id);
                 if (item != null)
                 {
-                    string resultCode = await Core.IsDeleteAble(_context, item);
+                    string resultCode = await Core.IsDeleteAble(_context, request.Id);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         _context.BankAccountTypes.Remove(item);

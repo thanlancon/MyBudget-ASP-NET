@@ -23,7 +23,7 @@ namespace Application.Banks
                 var item = await _context.Banks.FindAsync(request.Id);
                 if (item != null)
                 {
-                    string resultCode = await Core.IsDeleteAble(_context, item);
+                    string resultCode = await Core.IsDeleteAble(_context, request.Id);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         _context.Banks.Remove(item);

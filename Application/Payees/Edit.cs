@@ -27,7 +27,7 @@ namespace Application.Payees
                 var item = await _context.Payees.FindAsync(request.Payee.Id);
                 if (item != null)
                 {
-                    string resultCode = await Core.IsEditAble(_context, item);
+                    string resultCode = await Core.IsEditAble(_context, request.Payee);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         _mapper.Map(request.Payee, item);

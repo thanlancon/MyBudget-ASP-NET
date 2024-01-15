@@ -1,4 +1,5 @@
 using Application.Categories;
+using Application.Core;
 using Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,6 +30,10 @@ namespace API.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult> EditCategory(Guid id, Category category)
         {
+            if(id!=category.Id)
+            {
+                return HandleResult(Result<string>.Failure(ResponseConstants.RequestMissMatch));
+            }
             return HandleResult(await Mediator.Send(new Edit.Command { Category = category }));
         }
 

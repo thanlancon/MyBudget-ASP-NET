@@ -1,4 +1,5 @@
 using Application.BankAccounts;
+using Application.Core;
 using Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,10 @@ namespace API.Controllers
         [HttpPut("{Id}")]
         public async Task<ActionResult> Edit(Guid Id, BankAccount bankAccount)
         {
+            if(Id!=bankAccount.Id)
+            {
+                return HandleResult(Result<string>.Failure(ResponseConstants.RequestMissMatch));
+            }
             return HandleResult(await Mediator.Send(new Edit.Command { BankAccount = bankAccount }));
         }
         [HttpDelete("{Id}")]

@@ -27,7 +27,7 @@ namespace Application.Categories
                 var item = await _context.Categories.FindAsync(request.Category.Id);
                 if (item != null)
                 {
-                    string resultCode = await Core.IsEditAble(_context, item);
+                    string resultCode = await Core.IsEditAble(_context, request.Category);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         _mapper.Map(request.Category, item);

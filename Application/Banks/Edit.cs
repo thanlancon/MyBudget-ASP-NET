@@ -27,7 +27,7 @@ namespace Application.Banks
                 var item = await _context.Banks.FindAsync(request.Bank.Id);
                 if (item != null)
                 {
-                    string resultCode = await Core.IsEditAble(_context, item);
+                    string resultCode = await Core.IsEditAble(_context, request.Bank);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         _mapper.Map(request.Bank, item);

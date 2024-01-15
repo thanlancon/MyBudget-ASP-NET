@@ -103,9 +103,13 @@ namespace Application.Transactions
             }
             return ResponseConstants.Transaction.TransactionIsUpdateAble;
         }
-        public static string IsDeleteAble(DataContext context, Transaction transaction)
+        public static string IsDeleteAble(DataContext context, Guid Id)
         {
             return ResponseConstants.IsUpdateAble;
+        }
+        public static string IsEditAble(DataContext context, Transaction transaction)
+        {
+            return ResponseConstants.Transaction.TransactionIsUpdateAble;
         }
     }
 }

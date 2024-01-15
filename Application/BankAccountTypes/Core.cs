@@ -18,9 +18,9 @@ namespace Application.BankAccountTypes
 
             return ResponseConstants.IsUpdateAble;
         }
-        public static async Task<string> IsDeleteAble(DataContext context, BankAccountType item)
+        public static async Task<string> IsDeleteAble(DataContext context,  Guid Id)
         {
-            var count = await context.BankAccounts.CountAsync(e => e.BankAccountTypeId == item.Id);
+            var count = await context.BankAccounts.CountAsync(e => e.BankAccountTypeId == Id);
             if (count > 0)
             {
                 return ResponseConstants.BankAccountType.BankAccountIsExist;

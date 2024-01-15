@@ -23,7 +23,7 @@ namespace Application.Transactions
                 var item = await _context.Transactions.FindAsync(request.Id);
                 if (item != null)
                 {
-                    string resultCode = Core.IsDeleteAble(_context, item);
+                    string resultCode = Core.IsDeleteAble(_context, request.Id);
                     if (resultCode == ResponseConstants.IsUpdateAble)
                     {
                         TransactionActions transactionActions = new TransactionActions(item, _context);
